@@ -27,3 +27,5 @@ dist-ssr
 .idea
 *.iml
 
+# Local env files
+.env
