@@ -1,20 +1,32 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import instance from "../../app/axios.ts";
 import axios from 'axios';
-import {Todo} from "../../types/todos/todosInterfaces.ts";
+import { Todo } from "../../types/todos/todosInterfaces.ts";
 
 export interface TodosState {
     todos: Todo[];
-    status: 'idle' | 'loading' | 'failed';
+    loading: boolean;
+    error: string | null;
 }
 
 const initialState: TodosState = {
     todos: [],
-    status: 'idle',
+    loading: false,
+    error: null,
 };
 
-export const fetchTodos = createAsyncThunk('todos/fetchTodos', async () => {
-    const response = await axios.get<Todo[]>('/todos');
-    return response.data;
+export const fetchTodos = createAsyncThunk('todos/fetchTodos',
+    async (_, { rejectWithValue }) => {
+    try {
+        const response = await instance.get<Todo[]>('/todos');
+        return response.data;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+            return rejectWithValue(error.response.data);
+        } else {
+            return rejectWithValue('An unknown error occurred');
+        }
+    }
 });
 
 const todosSlice = createSlice({
@@ -36,20 +48,19 @@ const todosSlice = createSlice({
             state.todos = state.todos.filter(todo => todo.id !== action.payload);
         },
     },
-
     extraReducers: (builder) => {
         builder
             .addCase(fetchTodos.pending, (state) => {
-                state.status = 'loading';
+                state.loading = true;
+                state.error = null;
             })
-
             .addCase(fetchTodos.fulfilled, (state, action) => {
-                state.status = 'idle';
+                state.loading = false;
                 state.todos = action.payload;
             })
-
-            .addCase(fetchTodos.rejected, (state) => {
-                state.status = 'failed';
+            .addCase(fetchTodos.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
             });
     },
 });
